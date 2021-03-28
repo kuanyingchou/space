@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,7 +37,6 @@ import java.util.*
 class LaunchesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        //setContentView(R.layout.activity_launches)
 
         val model = getViewModel()
 
@@ -44,17 +44,31 @@ class LaunchesActivity : AppCompatActivity() {
             model.updateDB()
         }
 
+        val lightColors = lightColors(
+            primary = Color.Black,
+            secondary = Color.Blue
+        )
+
         setContent {
-            MaterialTheme {
-                val launches = model.filteredLaunchesByDate.collectAsState(emptyMap())
-                val filter = model._filter.collectAsState()
-                val isLoading = model._isLoading.collectAsState()
-                Column() {
-                    //renderFilter(filter = filter.value, model)
-                    FilterAndLaunches(launches.value, filter.value, model)
 
-                }
+            MaterialTheme(colors = lightColors) {
+                Scaffold(
+                    topBar = {
+                        TopAppBar() {
+                            Text("Upcoming Launches")
+                        }
+                    },
+                    content = {
+                        val launches = model.filteredLaunchesByDate.collectAsState(emptyMap())
+                        val filter = model._filter.collectAsState()
+                        val isLoading = model._isLoading.collectAsState()
 
+                        Column() {
+                            FilterAndLaunches(launches.value, filter.value, model)
+
+                        }
+                    }
+                )
             }
         }
 
@@ -107,7 +121,9 @@ class LaunchesActivity : AppCompatActivity() {
             val showBackToTopButton = listState.firstVisibleItemIndex > 0
             if(showBackToTopButton) {
                 FloatingActionButton(
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 8.dp),
                     onClick = {
                         scope.launch {
                             listState.scrollToItem(0)
