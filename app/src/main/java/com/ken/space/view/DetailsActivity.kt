@@ -3,20 +3,28 @@ package com.ken.space.view
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.view.View
-import android.widget.Button
-import android.widget.TextView
-import androidx.activity.viewModels
+import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.Observer
-import com.facebook.drawee.view.SimpleDraweeView
-import com.ken.space.R
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import com.bumptech.glide.request.RequestOptions
+import com.google.accompanist.glide.GlideImage
+import com.ken.space.SpaceTheme
 import com.ken.space.model.DetailsViewModel
+import com.ken.space.model.Launch
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.format.DateTimeFormat
 import org.koin.android.viewmodel.ext.android.viewModel
-import org.koin.core.parameter.ParametersDefinition
 import org.koin.core.parameter.parametersOf
 import java.util.*
 
@@ -26,49 +34,59 @@ const val KEY_LAUNCH_ID = "LAUNCH_ID"
 class DetailsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_details)
 
         val launchId = intent.getStringExtra(KEY_LAUNCH_ID)!!
 
-        val model: DetailsViewModel by viewModel<DetailsViewModel>(
+        val model: DetailsViewModel by viewModel(
             parameters = { parametersOf(launchId) }
         )
 
-        setupViews(model)
+        setContent {
+            val launch = model.launch.collectAsState().value
 
-        setupCountdown(model)
-    }
-
-    private fun setupViews(model: DetailsViewModel) {
-        model.launch.observe(this, Observer { launch ->
-            findViewById<SimpleDraweeView>(R.id.image_view).setImageURI(launch.image)
-            findViewById<TextView>(R.id.name_text_view).text = launch.name
-            findViewById<TextView>(R.id.net_text_view).text = formatDateTime(launch.net)
-            findViewById<TextView>(R.id.mission_desc_text_view).text = launch.mission?.description
-            findViewById<Button>(R.id.info_button).apply {
-                text = "Info"
-                visibility = if (launch.infoURLs == null) View.GONE else View.VISIBLE
-                setOnClickListener {
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(launch.infoURLs))
-                    startActivity(browserIntent)
+            SpaceTheme.Scaffold(title = "Launch Details") {
+                if(launch != null) {
+                    Detail(launch, model)
                 }
             }
-            findViewById<Button>(R.id.vid_button).apply {
-                text = "Video"
-                visibility = if (launch.vidURLs == null) View.GONE else View.VISIBLE
-                setOnClickListener {
-                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(launch.vidURLs))
-                    startActivity(browserIntent)
-                }
-            }
-        })
+        }
     }
 
-    private fun setupCountdown(model: DetailsViewModel) {
-        val textView = findViewById<TextView>(R.id.countdown_text_view)
-        model.countdown.observe(this, Observer {
-            textView.text = it
-        })
+    @Composable
+    private fun Detail(launch: Launch, model: DetailsViewModel) {
+        val countdown = model.countdown.collectAsState("").value
+
+        Column() {
+            GlideImage(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1F),
+                data = launch.image ?: "",
+                contentDescription = "",
+                fadeIn = true,
+                requestBuilder = {
+                    val options = RequestOptions()
+                    options.centerCrop()
+                    apply(options)
+                }
+            )
+            Column(modifier = Modifier.padding(8.dp, 8.dp)) {
+                Text(text = launch.name, style = MaterialTheme.typography.h5)
+                Text(text = formatDateTime(launch.net), style = MaterialTheme.typography.caption)
+                Text(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    text = countdown,
+                    style = MaterialTheme.typography.h4)
+                Text(text = launch.mission?.description ?: "", style = MaterialTheme.typography.body1)
+
+                launch.infoURLs?.let {
+                    Button(onClick = {
+                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
+                        startActivity(browserIntent)
+                    }) {}
+                }
+            }
+        }
     }
 
     private fun formatDateTime(dateTime: DateTime): String {

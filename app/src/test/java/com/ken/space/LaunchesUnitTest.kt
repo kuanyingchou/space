@@ -13,10 +13,8 @@ import junit.framework.Assert.assertEquals
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.runBlockingTest
 import kotlinx.coroutines.test.setMain
 import org.joda.time.DateTime
 import org.joda.time.DateTimeUtils
@@ -149,9 +147,9 @@ class LaunchesUnitTest {
         val model = LaunchesViewModel(launchesDao, spaceService, mainDispatcher, ioDispatcher)
 
         assertEquals(localLaunches, model._launches.first())
-        assertEquals("", model._filter.first())
-        assertEquals(false, model._isLoading.first())
-        assertEquals("", model._error.first())
+        assertEquals("", model.filter.first())
+        assertEquals(false, model.isLoading.first())
+        assertEquals("", model.error.first())
     }
 
     @Test

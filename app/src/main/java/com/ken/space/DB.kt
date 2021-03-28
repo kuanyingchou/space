@@ -5,14 +5,6 @@ import com.ken.space.model.Converters
 import com.ken.space.model.Launch
 import kotlinx.coroutines.flow.Flow
 
-//object DB {
-//    val spaceDB = Room.databaseBuilder(
-//            App.instance,
-//            SpaceDB::class.java,
-//            "space"
-//    ).build()
-//}
-
 @Database(entities = [Launch::class], version = 1)
 @TypeConverters(Converters::class)
 abstract class SpaceDB : RoomDatabase() {

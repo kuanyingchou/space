@@ -22,9 +22,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import kotlin.coroutines.CoroutineContext
 
 class App: Application() {
-    companion object {
-        lateinit var instance: Context
-    }
 
     private val appModule = module {
 
@@ -46,7 +43,7 @@ class App: Application() {
 
         single<SpaceService> {
             Retrofit.Builder()
-                    .baseUrl(PROD_BASE_URL)
+                    .baseUrl(DEBUG_BASE_URL)
                     .addConverterFactory(GsonConverterFactory.create(get()))
                     .build().create(SpaceService::class.java)
         }
@@ -79,7 +76,6 @@ class App: Application() {
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
         Fresco.initialize(this)
 
         startKoin{

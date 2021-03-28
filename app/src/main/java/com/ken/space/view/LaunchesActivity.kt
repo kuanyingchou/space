@@ -1,11 +1,13 @@
 package com.ken.space.view
 
+import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.*
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,17 +19,20 @@ import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Observer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.addRepeatingJob
 import com.bumptech.glide.request.RequestOptions
 import com.google.accompanist.glide.GlideImage
+import com.ken.space.SpaceTheme
 import com.ken.space.model.Launch
 import com.ken.space.model.LaunchesViewModel
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import org.joda.time.DateTimeZone
 import org.joda.time.format.DateTimeFormat
@@ -38,53 +43,28 @@ class LaunchesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val model = getViewModel()
+        val model by viewModel<LaunchesViewModel>()
 
         if(savedInstanceState==null) {
             model.updateDB()
         }
 
-        val lightColors = lightColors(
-            primary = Color.Black,
-            secondary = Color.Blue
-        )
-
         setContent {
-
-            MaterialTheme(colors = lightColors) {
-                Scaffold(
-                    topBar = {
-                        TopAppBar() {
-                            Text("Upcoming Launches")
-                        }
-                    },
-                    content = {
-                        val launches = model.filteredLaunchesByDate.collectAsState(emptyMap())
-                        val filter = model._filter.collectAsState()
-                        val isLoading = model._isLoading.collectAsState()
-
-                        Column() {
-                            FilterAndLaunches(launches.value, filter.value, model)
-
-                        }
+            SpaceTheme.Scaffold(title = "Upcoming Launches") {
+                val launches = model.filteredLaunchesByDate.collectAsState(emptyMap()).value
+                val filter = model.filter.collectAsState().value
+                val isLoading = model.isLoading.collectAsState().value
+                Column {
+                    if (isLoading) {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
-                )
+                    FilterAndLaunches(launches, filter, model)
+                }
             }
         }
 
-//        val recyclerView = setupRecyclerView(model)
-//
-//        setupBackToTopButton(model, recyclerView)
-//
-//        val filterEditText = setupFilter(model)
-//
-//        setupClearButton(model, filterEditText)
-//
         setupErrorToast(model)
-//
-//        setupSwipeRefresh(model)
-//
-//        setupEmptyView(model, recyclerView)
+
     }
 
     @OptIn(ExperimentalFoundationApi::class)
@@ -169,10 +149,17 @@ class LaunchesActivity : AppCompatActivity() {
 
     @Composable
     private fun Launch(launch: Launch) {
+        val context = LocalContext.current
+
         Card(
             elevation = 4.dp,
             modifier = Modifier
                 .fillMaxWidth()
+                .clickable {
+                    val intent = Intent(context, DetailsActivity::class.java)
+                    intent.putExtra(KEY_LAUNCH_ID, launch.id)
+                    startActivity(intent)
+                }
                 .padding(start = 8.dp, end = 8.dp)
         ) {
             Row(modifier = Modifier.wrapContentHeight()) {
@@ -212,22 +199,18 @@ class LaunchesActivity : AppCompatActivity() {
                     )
                 }
             }
-
         }
     }
 
-    private fun getViewModel(): LaunchesViewModel {
-        val model by viewModel<LaunchesViewModel>()
-        return model
-    }
-
     private fun setupErrorToast(model: LaunchesViewModel) {
-        model.error.observe(this, Observer {
-            if(it.isNotEmpty()) {
-                Toast.makeText(this@LaunchesActivity, it, Toast.LENGTH_SHORT).show()
-                model.dismissError()
+        addRepeatingJob(Lifecycle.State.STARTED) {
+            model.error.collect {
+                if (it.isNotEmpty()) {
+                    Toast.makeText(this@LaunchesActivity, it, Toast.LENGTH_SHORT).show()
+                    model.dismissError()
+                }
             }
-        })
+        }
     }
 
 }

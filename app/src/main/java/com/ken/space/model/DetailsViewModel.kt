@@ -1,14 +1,11 @@
 package com.ken.space.model
 
+import android.util.Log
 import androidx.lifecycle.*
 import com.ken.space.LaunchesDao
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import org.joda.time.DateTime
-import org.joda.time.DateTimeZone
 import org.joda.time.Period
 import org.joda.time.PeriodType
 import org.joda.time.format.PeriodFormatter
@@ -30,17 +27,15 @@ private val periodFormatter: PeriodFormatter = PeriodFormatterBuilder()
 
 class DetailsViewModel(launchId: String, launchesDao: LaunchesDao): ViewModel() {
 
-    private val _launch: MutableStateFlow<Launch?> = MutableStateFlow(null)
-    val launch: LiveData<Launch> = _launch
-            .filterNotNull()
-            .asLiveData(Dispatchers.Main)
+    val launch: MutableStateFlow<Launch?> = MutableStateFlow(null)
 
-    private val _countdown: Flow<String> = _launch.filterNotNull().flatMapLatest {
+    val countdown: Flow<String> = launch.filterNotNull().flatMapLatest {
         flow {
             val periodType = PeriodType.dayTime().withMillisRemoved()
             var period = Period.ZERO
 
             while(true) {
+                if(!currentCoroutineContext().isActive) break
                 val now = DateTime.now()
                 if(it.net.isAfter(now)) {
                     val p = Period(now, it.net, periodType)
@@ -52,15 +47,15 @@ class DetailsViewModel(launchId: String, launchesDao: LaunchesDao): ViewModel() 
                 }
                 emit(period.toString(periodFormatter))
                 delay(100)
+                Log.d("gyz", "emitting")
             }
         }
     }
-    val countdown = _countdown.asLiveData(Dispatchers.Main)
 
     init {
         viewModelScope.launch(Dispatchers.Main) {
             withContext(Dispatchers.IO) {
-                _launch.value = launchesDao.get(launchId)!!
+                launch.value = launchesDao.get(launchId)!!
             }
         }
     }
