@@ -47,7 +47,6 @@ class DetailsViewModel(launchId: String, launchesDao: LaunchesDao): ViewModel() 
                 }
                 emit(period.toString(periodFormatter))
                 delay(100)
-                Log.d("gyz", "emitting")
             }
         }
     }
@@ -57,12 +56,6 @@ class DetailsViewModel(launchId: String, launchesDao: LaunchesDao): ViewModel() 
             withContext(Dispatchers.IO) {
                 launch.value = launchesDao.get(launchId)!!
             }
-        }
-    }
-
-    class Factory(private val launchId: String, private val launchesDao: LaunchesDao): ViewModelProvider.Factory {
-        override fun <T : ViewModel?> create(modelClass: Class<T>): T {
-            return DetailsViewModel(launchId, launchesDao) as T
         }
     }
 }

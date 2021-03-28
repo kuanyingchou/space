@@ -5,6 +5,9 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.ScrollableState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -55,8 +58,8 @@ class DetailsActivity : AppCompatActivity() {
     @Composable
     private fun Detail(launch: Launch, model: DetailsViewModel) {
         val countdown = model.countdown.collectAsState("").value
-
-        Column() {
+        val scrollState = rememberScrollState()
+        Column(Modifier.verticalScroll(scrollState)) {
             GlideImage(
                 modifier = Modifier
                     .fillMaxWidth()

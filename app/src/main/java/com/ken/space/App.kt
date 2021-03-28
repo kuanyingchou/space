@@ -3,7 +3,6 @@ package com.ken.space
 import android.app.Application
 import android.content.Context
 import androidx.room.Room
-import com.facebook.drawee.backends.pipeline.Fresco
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.ken.space.model.DateTimeAdapter
@@ -76,7 +75,6 @@ class App: Application() {
 
     override fun onCreate() {
         super.onCreate()
-        Fresco.initialize(this)
 
         startKoin{
             androidLogger()
