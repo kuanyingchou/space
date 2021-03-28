@@ -2,25 +2,41 @@ package com.ken.space.view
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.util.Log
-import android.view.View
 import android.widget.*
-import androidx.activity.viewModels
-import androidx.core.widget.doAfterTextChanged
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.North
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Observer
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.RecyclerView.OnScrollListener
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.ken.space.R
+import com.bumptech.glide.request.RequestOptions
+import com.google.accompanist.glide.GlideImage
+import com.ken.space.model.Launch
 import com.ken.space.model.LaunchesViewModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import org.joda.time.DateTimeZone
+import org.joda.time.format.DateTimeFormat
 import org.koin.android.viewmodel.ext.android.viewModel
+import java.util.*
 
 class LaunchesActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_launches)
+        //setContentView(R.layout.activity_launches)
 
         val model = getViewModel()
 
@@ -28,75 +44,165 @@ class LaunchesActivity : AppCompatActivity() {
             model.updateDB()
         }
 
-        val recyclerView = setupRecyclerView(model)
+        setContent {
+            MaterialTheme {
+                val launches = model.filteredLaunchesByDate.collectAsState(emptyMap())
+                val filter = model._filter.collectAsState()
+                val isLoading = model._isLoading.collectAsState()
+                Column() {
+                    //renderFilter(filter = filter.value, model)
+                    FilterAndLaunches(launches.value, filter.value, model)
 
-        setupBackToTopButton(model, recyclerView)
+                }
 
-        val filterEditText = setupFilter(model)
+            }
+        }
 
-        setupClearButton(model, filterEditText)
-
+//        val recyclerView = setupRecyclerView(model)
+//
+//        setupBackToTopButton(model, recyclerView)
+//
+//        val filterEditText = setupFilter(model)
+//
+//        setupClearButton(model, filterEditText)
+//
         setupErrorToast(model)
+//
+//        setupSwipeRefresh(model)
+//
+//        setupEmptyView(model, recyclerView)
+    }
 
-        setupSwipeRefresh(model)
+    @OptIn(ExperimentalFoundationApi::class)
+    @Composable
+    private fun FilterAndLaunches(grouped: Map<String, List<Launch>>, filter: String, model: LaunchesViewModel) {
+        val listState = rememberLazyListState()
+        val scope = rememberCoroutineScope()
+        Box() {
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Filter(filter, model)
+                }
 
-        setupEmptyView(model, recyclerView)
+                for((date, launches) in grouped) {
+                    stickyHeader {
+                        Text(
+                            text = date,
+                            Modifier
+                                .background(Color.White)
+                                .padding(horizontal = 8.dp)
+                                .fillMaxWidth()
+                        )
+                    }
+                    items(launches) { launch ->
+                        Launch(launch)
+                    }
+                }
+            }
+
+            val showBackToTopButton = listState.firstVisibleItemIndex > 0
+            if(showBackToTopButton) {
+                FloatingActionButton(
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+                    onClick = {
+                        scope.launch {
+                            listState.scrollToItem(0)
+                        }
+                    },
+                    backgroundColor = Color.White
+                ) {
+                    Icon(Icons.Filled.North, contentDescription = null)
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun Filter(filter: String, model: LaunchesViewModel) {
+        Box() {
+            TextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = filter,
+                onValueChange = { value ->
+                    model.updateFilter(value)
+                },
+                placeholder = { Text(text = "Filter by Mission") },
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                maxLines = 1
+            )
+            if(filter.isNotEmpty()) {
+                Row(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = { model.updateFilter("") }
+                    ) {
+                        Icon(Icons.Filled.Clear, contentDescription = null)
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    private fun Launch(launch: Launch) {
+        Card(
+            elevation = 4.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 8.dp, end = 8.dp)
+        ) {
+            Row(modifier = Modifier.wrapContentHeight()) {
+                GlideImage(
+                    modifier = Modifier.size(82.dp, 128.dp),
+                    data = launch.image ?: "",
+                    contentDescription = "",
+                    fadeIn = true,
+                    requestBuilder = {
+                        val options = RequestOptions()
+                        options.centerCrop()
+                        apply(options)
+                    }
+                )
+                Column(
+                    modifier = Modifier.padding(start = 8.dp),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    Text(
+                        text = launch.name,
+                        style = MaterialTheme.typography.body1
+                    )
+                    Text(
+                        text = launch.launch_service_provider?.name ?: "",
+                        style = MaterialTheme.typography.caption
+                    )
+                    Text(
+                        text = launch.pad?.name ?: "",
+                        style = MaterialTheme.typography.caption
+                    )
+                    Text(
+                        text = DateTimeFormat
+                            .forStyle("MM")
+                            .withLocale(Locale.getDefault())
+                            .print(launch.net.withZone(DateTimeZone.getDefault())),
+                        style = MaterialTheme.typography.caption
+                    )
+                }
+            }
+
+        }
     }
 
     private fun getViewModel(): LaunchesViewModel {
         val model by viewModel<LaunchesViewModel>()
         return model
-    }
-
-    private fun setupRecyclerView(model: LaunchesViewModel): RecyclerView {
-        val recyclerView = findViewById<RecyclerView>(R.id.recycler_view)
-        val lm = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false)
-
-        recyclerView.apply {
-            layoutManager = lm
-            adapter = LaunchesAdapter(this@LaunchesActivity, model)
-        }
-
-        recyclerView.addOnScrollListener(object: OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                model.setFirstVisibleItemPosition(lm.findFirstVisibleItemPosition())
-            }
-        })
-
-        model.filteredLaunches.observe(this, Observer {
-            model.setFirstVisibleItemPosition(lm.findFirstVisibleItemPosition())
-        })
-
-        return recyclerView
-    }
-
-    private fun setupBackToTopButton(model: LaunchesViewModel, recyclerView: RecyclerView) {
-        val backToTopButton = findViewById<Button>(R.id.back_to_top_button)
-        model.isAtTop.observe(this, Observer { isAtTop ->
-            backToTopButton.visibility = if(isAtTop) View.GONE else View.VISIBLE
-        })
-        backToTopButton.setOnClickListener {
-            recyclerView.smoothScrollToPosition(0) // no round trip
-        }
-    }
-
-    private fun setupFilter(model: LaunchesViewModel): EditText {
-        val filterEditText = findViewById<EditText>(R.id.filter_edit_text)
-        filterEditText.doAfterTextChanged {
-            model.updateFilter(it.toString())
-        }
-        return filterEditText
-    }
-
-    private fun setupClearButton(model: LaunchesViewModel, filterEditText: EditText) {
-        val clearButton = findViewById<Button>(R.id.clear_button)
-        model.filter.observe(this, Observer {
-            clearButton.isEnabled = it.isNotEmpty()
-        })
-
-        clearButton.setOnClickListener {
-            filterEditText.text.clear() // no trip to view model to prevent infinite loop
-        }
     }
 
     private fun setupErrorToast(model: LaunchesViewModel) {
@@ -108,22 +214,4 @@ class LaunchesActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupSwipeRefresh(model: LaunchesViewModel) {
-        val swipeRefresh = findViewById<SwipeRefreshLayout>(R.id.swipe_refresh).apply {
-            setOnRefreshListener {
-                model.updateDB()
-            }
-        }
-        model.isLoading.observe(this, Observer {isLoading ->
-            swipeRefresh.isRefreshing = isLoading
-        })
-    }
-
-    private fun setupEmptyView(model: LaunchesViewModel, recyclerView: RecyclerView) {
-        val emptyView = findViewById<TextView>(R.id.empty_view)
-        model.filteredLaunches.observe(this, Observer {
-            emptyView.visibility = if (it.isEmpty()) View.VISIBLE else View.GONE
-            recyclerView.visibility = if (it.isNotEmpty()) View.VISIBLE else View.GONE
-        })
-    }
 }

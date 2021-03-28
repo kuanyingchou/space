@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
+import org.joda.time.format.DateTimeFormat
 import java.util.*
 import kotlin.coroutines.CoroutineContext
 
@@ -25,14 +26,31 @@ class LaunchesViewModel(private val launchesDao: LaunchesDao,
     // introduces another layer. And we have no need to access these Flows in other ViewModels
     // for now.
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    lateinit var _launches: StateFlow<List<Launch>>
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    val _filteredLaunchesFlow: MutableStateFlow<List<Launch>> = MutableStateFlow(emptyList())
-    val filteredLaunches: LiveData<List<Launch>> = _filteredLaunchesFlow.asLiveData(mainDispatcher)
+    val _launches: Flow<List<Launch>> = launchesDao.getAll()
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val _filter: MutableStateFlow<String> = MutableStateFlow("")
-    val filter: LiveData<String> = _filter.asLiveData(mainDispatcher)
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    val _filteredLaunchesFlow: Flow<List<Launch>> = _launches
+        .combine(_filter) { a, b -> Pair(a, b) }
+        .map { (list, filter) ->
+            val now = DateTime.now()
+            list.filter { match(it.mission?.name, filter) && it.net.isAfter(now) }
+        }
+        .distinctUntilChanged()
+
+    val filteredLaunchesByDate: StateFlow<Map<String, List<Launch>>> = _filteredLaunchesFlow
+        .map { launches ->
+            launches.groupBy {
+                DateTimeFormat
+                    .mediumDate()
+                    .withLocale(Locale.getDefault())
+                    .print(it.net.withZone(DateTimeZone.getDefault()))
+            }
+        }
+        .flowOn(ioDispatcher)
+        .stateIn(viewModelScope, started = SharingStarted.Eagerly, emptyMap())
 
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     val _isLoading: MutableStateFlow<Boolean> = MutableStateFlow(false)
@@ -49,31 +67,10 @@ class LaunchesViewModel(private val launchesDao: LaunchesDao,
             .map { it == 0 }
             .asLiveData(mainDispatcher)
 
-    init {
-        viewModelScope.launch(mainDispatcher) {
-            _launches = launchesDao.getAll().stateIn(viewModelScope)
-
-            _launches.combine(_filter) { a, b -> Pair(a, b) }
-                    .map { (list, filter) ->
-                        val now = DateTime.now()
-                        list.filter { match(it.mission?.name, filter) && isAfter(it.net, now) }
-                    }
-                    .distinctUntilChanged()
-                    .flowOn(ioDispatcher)
-                    .collect {
-                        _filteredLaunchesFlow.value = it
-                    }
-        }
-    }
-
     private fun match(str: String?, keyword: String?): Boolean {
         if (str.isNullOrEmpty()) return false
         if (keyword.isNullOrEmpty()) return true
         return str.toLowerCase(Locale.getDefault()).contains(keyword.toLowerCase(Locale.getDefault()))
-    }
-
-    private fun isAfter(a: DateTime, b: DateTime): Boolean {
-        return a.isAfter(b)
     }
 
     fun updateDB() {
