@@ -5,9 +5,8 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.*
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,6 +39,7 @@ import org.koin.android.viewmodel.ext.android.viewModel
 import java.util.*
 
 class LaunchesActivity : AppCompatActivity() {
+    @ExperimentalAnimationApi
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -67,11 +67,13 @@ class LaunchesActivity : AppCompatActivity() {
 
     }
 
+    @ExperimentalAnimationApi
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
     private fun FilterAndLaunches(grouped: Map<String, List<Launch>>, filter: String, model: LaunchesViewModel) {
         val listState = rememberLazyListState()
         val scope = rememberCoroutineScope()
+
         Box() {
             LazyColumn(
                 state = listState,
@@ -99,11 +101,16 @@ class LaunchesActivity : AppCompatActivity() {
             }
 
             val showBackToTopButton = listState.firstVisibleItemIndex > 0
-            if(showBackToTopButton) {
+
+            AnimatedVisibility(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 8.dp),
+                visible = showBackToTopButton,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
                 FloatingActionButton(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp),
                     onClick = {
                         scope.launch {
                             listState.scrollToItem(0)
@@ -114,6 +121,7 @@ class LaunchesActivity : AppCompatActivity() {
                     Icon(Icons.Filled.North, contentDescription = null)
                 }
             }
+
         }
     }
 

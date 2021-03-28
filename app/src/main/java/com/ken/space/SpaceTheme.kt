@@ -17,7 +17,7 @@ object SpaceTheme {
             Scaffold(
                 topBar = {
                     TopAppBar() {
-                        Text(title)
+                        Text(title, style = MaterialTheme.typography.h6)
                     }
                 },
                 content = content
